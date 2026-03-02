@@ -1,0 +1,44 @@
+# Configuration files with credentials
+config.json
+*.env
+
+# Output files
+vehicle_log.csv
+captures/
+*.jpg
+*.png
+*.mp4
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# YOLO models (download automatically)
+*.pt
+
+# Logs
+*.log
+service_*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+/tmp/
+temp/
