@@ -1,7 +1,12 @@
 {
-  "camera_rtsp": "rtsp://username:password@camera_ip:554/stream",
+  "camera_rtsp": "rtsp://admin:PASSWORD@CAMERA_IP:554/cam/realmonitor?channel=1&subtype=0",
+  "telegram_bot_token": "YOUR_TELEGRAM_BOT_TOKEN",
+  "telegram_chat_id": "YOUR_TELEGRAM_CHAT_ID",
+  "speed_threshold_mph": 35.0,
   "pixels_per_foot": 31.94,
-  "speed_threshold_mph": 35,
-  "telegram_bot_token": "YOUR_BOT_TOKEN_HERE",
-  "telegram_chat_id": "YOUR_CHAT_ID_HERE"
+  "confidence_threshold": 0.5,
+  "pre_buffer_seconds": 3,
+  "post_buffer_seconds": 3,
+  "calibration_note": "Calibrate using calibration_frame.py",
+  "compliance_speed_mph": 30.0
 }
