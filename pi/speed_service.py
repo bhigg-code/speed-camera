@@ -43,7 +43,7 @@ class HailoDetector:
         cfg_params    = ConfigureParams.create_from_hef(hef, interface=HailoStreamInterface.PCIe)
         ngs           = self._target.configure(hef, cfg_params)
         self._ng      = ngs[0]
-        self._in_p    = InputVStreamParams.make(self._ng,  format_type=FormatType.FLOAT32)
+        self._in_p    = InputVStreamParams.make(self._ng,  format_type=FormatType.UINT8)
         self._out_p   = OutputVStreamParams.make(self._ng, format_type=FormatType.FLOAT32)
         self._in_name = hef.get_input_vstream_infos()[0].name
         log(f"Hailo-8 initialised — model: {hef_path.name}")
@@ -75,11 +75,11 @@ class HailoDetector:
         """
         h_orig, w_orig = frame.shape[:2]
         resized = cv2.resize(frame, self.INPUT_SIZE)
-        inp = resized.astype(np.float32) / 255.0
-        outputs = self._pipe.infer({self._in_name: np.expand_dims(inp, 0)})
+        # Model requires UINT8 input (raw pixel values 0-255, not normalized)
+        inp = np.expand_dims(resized, 0)  # shape (1, 640, 640, 3) uint8
+        outputs = self._pipe.infer({self._in_name: inp})
 
-        scale_x = w_orig / self.INPUT_SIZE[0]
-        scale_y = h_orig / self.INPUT_SIZE[1]
+        # Hailo NMS output coords are normalized 0-1 — scale to original frame size
         detections = []
 
         for key, batch in outputs.items():
@@ -96,10 +96,10 @@ class HailoDetector:
                         continue
                     detections.append({
                         'cls':  cls_idx,
-                        'x1':   int(x1 * scale_x),
-                        'y1':   int(y1 * scale_y),
-                        'x2':   int(x2 * scale_x),
-                        'y2':   int(y2 * scale_y),
+                        'x1':   int(x1 * w_orig),
+                        'y1':   int(y1 * h_orig),
+                        'x2':   int(x2 * w_orig),
+                        'y2':   int(y2 * h_orig),
                         'conf': float(conf),
                     })
         return detections
@@ -260,6 +260,11 @@ while True:
             if frame_count % 2 != 0:
                 continue
 
+            # Heartbeat log every ~33 seconds so monitor can confirm active processing
+            if frame_count % 1000 == 0:
+                active_tracks = len([t for t in tracks.values() if frame_time - t['last'] < 2.5])
+                log(f"♥ Processing — vehicles: {total_vehicles}, speeders: {total_speeders}, mode: {mode}, active_tracks: {active_tracks}")
+
             # Day/night mode switch check (every 5 min)
             if frame_time - last_mode_check > 300:
                 new_params = get_detection_params()
@@ -285,6 +290,11 @@ while True:
             # ── Hailo inference ────────────────────────────────────────────
             frame_detections = detector.infer(processed, conf_threshold=params['confidence'])
             frame_detections = merge_overlapping(frame_detections, proximity=80)
+
+            # Debug: log detections every 500 frames (~16s) so we know Hailo is seeing vehicles
+            if frame_count % 500 == 0 and frame_detections:
+                det_summary = [(vehicle_classes.get(d['cls'], d['cls']), round(d['conf'], 2)) for d in frame_detections]
+                log(f"🔍 DEBUG dets: {det_summary}")
 
             # ── Tracking ───────────────────────────────────────────────────
             for det in frame_detections:
