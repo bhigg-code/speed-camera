@@ -15,9 +15,9 @@ def allowed_file(filename):
 app.secret_key = os.environ.get('FLASK_SECRET_KEY', '97098d697ce1418735afe94db89e41e38301b515bc419ee510ca0cf8db9dd911')
 
 PASSWORD = os.environ.get('SPEED_CAMERA_PASSWORD', 'UmbrellaSpeed2026!')
-CONFIG_FILE = Path('C:/speedcamera/config.json')
-LOG_FILE = Path('C:/speedcamera/vehicle_log.csv')
-CAPTURES_DIR = Path('C:/speedcamera/captures')
+CONFIG_FILE = Path('/opt/speedcamera/config.json')
+LOG_FILE = Path('/opt/speedcamera/vehicle_log.csv')
+CAPTURES_DIR = Path('/opt/speedcamera/captures')
 
 def load_config():
     with open(CONFIG_FILE, 'r') as f:
@@ -402,7 +402,7 @@ def video_process():
     threshold = int(request.form.get('threshold', 35))
     
     # Save uploaded file
-    upload_dir = Path('C:/speedcamera/uploads')
+    upload_dir = Path('/opt/speedcamera/uploads')
     upload_dir.mkdir(exist_ok=True)
     
     # Generate unique filename
