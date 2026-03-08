@@ -91,7 +91,8 @@ class HailoDetector:
                 for box in boxes:
                     if len(box) < 5:
                         continue
-                    x1, y1, x2, y2, conf = box[0], box[1], box[2], box[3], box[4]
+                    # Hailo NMS output format is [y1, x1, y2, x2, conf] (row-major / NHWC)
+                    y1, x1, y2, x2, conf = box[0], box[1], box[2], box[3], box[4]
                     if conf < conf_threshold:
                         continue
                     detections.append({
