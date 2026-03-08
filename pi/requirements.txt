@@ -1,0 +1,10 @@
+ultralytics>=8.0.0
+opencv-python-headless>=4.8.0
+flask>=3.0.0
+flask-login>=0.6.0
+numpy>=1.24.0
+requests>=2.31.0
+# hailo_platform: install via apt: sudo apt install python3-hailort
+# torch: CPU only (inference handled by Hailo chip)
+torch>=2.0.0
+torchvision>=0.15.0
