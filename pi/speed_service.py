@@ -48,37 +48,47 @@ class HailoDetector:
         self._in_name = hef.get_input_vstream_infos()[0].name
         log(f"Hailo-8 initialised — model: {hef_path.name}")
 
+    def start(self):
+        """Open persistent inference pipeline. Call once before the main loop."""
+        self._active_ctx = self._ng.activate()
+        self._active_ctx.__enter__()
+        self._pipe = self._InferVStreams(self._ng, self._in_p, self._out_p)
+        self._pipe.__enter__()
+        log("Hailo-8 inference pipeline open (persistent)")
+
+    def stop(self):
+        """Close persistent pipeline on shutdown."""
+        try:
+            self._pipe.__exit__(None, None, None)
+            self._active_ctx.__exit__(None, None, None)
+        except Exception:
+            pass
+
     def infer(self, frame, conf_threshold=0.4):
-        """Run detection on a BGR frame. Returns list of dicts with box + class info.
+        """Run detection on a BGR frame using persistent pipeline.
 
         Hailo NMS post-processed output format:
-          outputs[key]          -> list (batch)
-          outputs[key][0]       -> list of 80 class arrays
-          outputs[key][0][cls]  -> ndarray shape (N, 5): [x1, y1, x2, y2, confidence]
+          outputs[key]         -> list (batch)
+          outputs[key][0]      -> list of 80 per-class arrays
+          outputs[key][0][cls] -> ndarray shape (N, 5): [x1, y1, x2, y2, conf]
           Coordinates are in INPUT_SIZE (640x640) pixel space.
         """
         h_orig, w_orig = frame.shape[:2]
         resized = cv2.resize(frame, self.INPUT_SIZE)
         inp = resized.astype(np.float32) / 255.0
-
-        with self._ng.activate():
-            with self._InferVStreams(self._ng, self._in_p, self._out_p) as pipe:
-                outputs = pipe.infer({self._in_name: np.expand_dims(inp, 0)})
+        outputs = self._pipe.infer({self._in_name: np.expand_dims(inp, 0)})
 
         scale_x = w_orig / self.INPUT_SIZE[0]
         scale_y = h_orig / self.INPUT_SIZE[1]
         detections = []
 
         for key, batch in outputs.items():
-            # batch[0] = list of per-class arrays
-            class_arrays = batch[0]
-            for cls_idx, boxes in enumerate(class_arrays):
+            for cls_idx, boxes in enumerate(batch[0]):
                 if cls_idx not in self.VEHICLE_CLASSES:
                     continue
                 if boxes is None or len(boxes) == 0:
                     continue
                 for box in boxes:
-                    # box: [x1, y1, x2, y2, confidence]
                     if len(box) < 5:
                         continue
                     x1, y1, x2, y2, conf = box[0], box[1], box[2], box[3], box[4]
@@ -198,8 +208,9 @@ def load_config():
 CONFIG = load_config()
 init_csv()
 
-# Initialise Hailo detector
+# Initialise Hailo detector with persistent inference pipeline
 detector = HailoDetector(HEF_MODEL)
+detector.start()
 
 mode   = "NIGHT" if is_night_time() else "DAY"
 params = get_detection_params()
@@ -407,6 +418,7 @@ while True:
 
     except KeyboardInterrupt:
         log("Shutting down...")
+        detector.stop()
         send_telegram(CONFIG['telegram_bot_token'], CONFIG['telegram_chat_id'],
             f"🔴 Speed Camera Stopped\n\nTotal vehicles: {total_vehicles}\nSpeeders: {total_speeders}")
         break
